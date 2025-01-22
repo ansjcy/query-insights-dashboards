@@ -24,12 +24,18 @@ import {
 } from '@elastic/eui';
 import { useHistory, useLocation } from 'react-router-dom';
 import { CoreStart } from 'opensearch-dashboards/public';
-import { QUERY_INSIGHTS, MetricSettings, GroupBySettings } from '../TopNQueries/TopNQueries';
+import {
+  QUERY_INSIGHTS,
+  MetricSettings,
+  GroupBySettings,
+  DeleteAfterDaysSettings,
+} from '../TopNQueries/TopNQueries';
 import {
   METRIC_TYPES_TEXT,
   TIME_UNITS_TEXT,
   MINUTES_OPTIONS,
   GROUP_BY_OPTIONS,
+  EXPORTER_TYPES_LIST,
 } from '../Utils/Constants';
 
 const Configuration = ({

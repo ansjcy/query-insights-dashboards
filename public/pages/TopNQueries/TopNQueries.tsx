@@ -11,7 +11,7 @@ import { CoreStart } from 'opensearch-dashboards/public';
 import QueryInsights from '../QueryInsights/QueryInsights';
 import Configuration from '../Configuration/Configuration';
 import QueryDetails from '../QueryDetails/QueryDetails';
-import { SearchQueryRecord } from '../../../types/types';
+import { QueryInsightsSettingsResponse, SearchQueryRecord } from '../../../types/types';
 import { QueryGroupDetails } from '../QueryGroupDetails/QueryGroupDetails';
 import {
   DEFAULT_TIME_UNIT,
@@ -20,8 +20,11 @@ import {
   MetricType,
 } from '../Utils/Constants';
 
-import { MetricSettingsResponse } from '../../types';
-import { getTimeAndUnitFromString } from '../Utils/MetricUtils';
+import {
+  getMergedMetricSettings,
+  getMergedStringSettings,
+  getTimeAndUnitFromString,
+} from '../Utils/MetricUtils';
 import { EXPORTER_TYPE } from '../Utils/Constants';
 
 export const QUERY_INSIGHTS = '/queryInsights';
@@ -210,29 +213,11 @@ const TopNQueries = ({
     ) => {
       if (get) {
         try {
-          // Helper to get merged settings with transient overwriting persistent
-          const getMergedMetricSettings = (
-            persistent: MetricSettingsResponse | undefined,
-            transient: MetricSettingsResponse | undefined
-          ): MetricSettingsResponse => {
-            if (transient !== undefined) {
-              return transient;
-            }
-            return {
-              ...persistent,
-            };
-          };
-
-          const getMergedGroupBySettings = (
-            persistent: string | undefined,
-            transient: string | undefined
-          ) => {
-            return transient ?? persistent;
-          };
-
           const resp = await core.http.get('/api/settings');
-          const persistentSettings = resp?.response?.persistent?.search?.insights?.top_queries;
-          const transientSettings = resp?.response?.transient?.search?.insights?.top_queries;
+          const persistentSettings: QueryInsightsSettingsResponse =
+            resp?.response?.persistent?.search?.insights?.top_queries;
+          const transientSettings: QueryInsightsSettingsResponse =
+            resp?.response?.transient?.search?.insights?.top_queries;
           const metrics = [
             {
               metricType: MetricType.LATENCY,
@@ -273,13 +258,17 @@ const TopNQueries = ({
               });
             }
           });
-          const groupBy = getMergedGroupBySettings(
+          const groupBy = getMergedStringSettings(
             persistentSettings?.group_by,
             transientSettings?.group_by
           );
           if (groupBy) {
             setGroupBySettings({ groupBy });
           }
+          const deleteAfterDays = getMergedStringSettings(
+            persistentSettings?.delete_after_days,
+            transientSettings?.delete_after_days
+          );
           if (deleteAfterDays) {
             setDeleteAfterDaysSettings({ deleteAfterDays });
           }

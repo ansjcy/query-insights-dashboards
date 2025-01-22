@@ -193,8 +193,6 @@ export function defineRoutes(router: IRouter) {
         const query = request.query;
         const client = context.queryInsights_plugin.queryInsightsClient.asScoped(request)
           .callAsCurrentUser;
-        console.log('query::');
-        console.log(query);
         const params = {
           body: {
             persistent: {
@@ -213,8 +211,6 @@ export function defineRoutes(router: IRouter) {
           params.body.persistent['search.insights.top_queries.delete_after_days'] =
             query.delete_after_days;
         }
-
-        console.log(params.body.persistent);
 
         const res = await client('queryInsights.setSettings', params);
         return response.custom({
