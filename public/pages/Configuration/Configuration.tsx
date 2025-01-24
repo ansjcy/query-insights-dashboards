@@ -28,7 +28,7 @@ import {
   QUERY_INSIGHTS,
   MetricSettings,
   GroupBySettings,
-  DeleteAfterDaysSettings,
+  DataRetentionSettings,
 } from '../TopNQueries/TopNQueries';
 import {
   METRIC_TYPES_TEXT,
@@ -36,6 +36,7 @@ import {
   MINUTES_OPTIONS,
   GROUP_BY_OPTIONS,
   EXPORTER_TYPES_LIST,
+  EXPORTER_TYPE,
 } from '../Utils/Constants';
 
 const Configuration = ({
@@ -43,7 +44,7 @@ const Configuration = ({
   cpuSettings,
   memorySettings,
   groupBySettings,
-  deleteAfterDaysSettings,
+  dataRetentionSettings,
   configInfo,
   core,
 }: {
@@ -51,7 +52,7 @@ const Configuration = ({
   cpuSettings: MetricSettings;
   memorySettings: MetricSettings;
   groupBySettings: GroupBySettings;
-  deleteAfterDaysSettings: DeleteAfterDaysSettings;
+  dataRetentionSettings: DataRetentionSettings;
   configInfo: any;
   core: CoreStart;
 }) => {
@@ -63,9 +64,9 @@ const Configuration = ({
   const [topNSize, setTopNSize] = useState(latencySettings.currTopN);
   const [windowSize, setWindowSize] = useState(latencySettings.currWindowSize);
   const [time, setTime] = useState(latencySettings.currTimeUnit);
-  const [exporterType, setExporterTypeType] = useState(latencySettings.exporterType);
   const [groupBy, setGroupBy] = useState(groupBySettings.groupBy);
-  const [deleteAfterDays, setDeleteAfterDays] = useState(deleteAfterDaysSettings.deleteAfterDays);
+  const [deleteAfterDays, setDeleteAfterDays] = useState(dataRetentionSettings.deleteAfterDays);
+  const [exporterType, setExporterTypeType] = useState(dataRetentionSettings.exporterType);
 
   const [metricSettingsMap, setMetricSettingsMap] = useState({
     latency: latencySettings,
@@ -77,8 +78,8 @@ const Configuration = ({
     groupBy: groupBySettings,
   });
 
-  const [deleteAfterDaysSettingMap, deleteAfterDaysBySettingMap] = useState({
-    deleteAfterDays: deleteAfterDaysSettings,
+  const [dataRetentionSettingMap, setDataRetentionSettingMap] = useState({
+    dataRetention: dataRetentionSettings,
   });
 
   useEffect(() => {
@@ -95,7 +96,7 @@ const Configuration = ({
     setWindowSize(currMetric.currWindowSize);
     setTime(currMetric.currTimeUnit);
     setIsEnabled(currMetric.isEnabled);
-    setExporterTypeType(currMetric.exporterType);
+    // setExporterTypeType(currMetric.exporterType);
   }, [metric, metricSettingsMap]);
 
   useEffect(() => {
@@ -106,17 +107,16 @@ const Configuration = ({
     setGroupBySettingMap({
       groupBy: groupBySettings,
     });
-
     setGroupBy(groupBySettings.groupBy);
   }, [groupBySettings]);
 
   useEffect(() => {
-    deleteAfterDaysBySettingMap({
-      deleteAfterDays: deleteAfterDaysSettings,
+    setDataRetentionSettingMap({
+      dataRetention: dataRetentionSettings,
     });
-
-    setDeleteAfterDays(deleteAfterDaysSettings.deleteAfterDays);
-  }, [deleteAfterDaysSettings]);
+    setDeleteAfterDays(dataRetentionSettings.deleteAfterDays);
+    setExporterTypeType(dataRetentionSettings.exporterType);
+  }, [dataRetentionSettings]);
 
   useEffect(() => {
     core.chrome.setBreadcrumbs([
@@ -192,9 +192,9 @@ const Configuration = ({
     topNSize !== metricSettingsMap[metric].currTopN ||
     windowSize !== metricSettingsMap[metric].currWindowSize ||
     time !== metricSettingsMap[metric].currTimeUnit ||
-    exporterType !== metricSettingsMap[metric].exporterType ||
     groupBy !== groupBySettingMap.groupBy.groupBy ||
-    deleteAfterDays !== deleteAfterDaysSettingMap.deleteAfterDays.deleteAfterDays;
+    exporterType !== dataRetentionSettingMap.dataRetention.exporterType ||
+    deleteAfterDays !== dataRetentionSettingMap.dataRetention.deleteAfterDays;
 
   const isValid = (() => {
     const nVal = parseInt(topNSize, 10);
@@ -208,6 +208,28 @@ const Configuration = ({
   const formRowPadding = { padding: '0px 0px 20px' };
   const enabledSymb = <EuiHealth color="primary">Enabled</EuiHealth>;
   const disabledSymb = <EuiHealth color="default">Disabled</EuiHealth>;
+
+  // const DataRetentionPanel = () => {
+  //   let disabled = true;
+  //   let value = '';
+  //   if (exporterType === EXPORTER_TYPE.localIndex) {
+  //     disabled = false;
+  //     value = deleteAfterDays;
+  //   }
+  //   return (
+  //     <EuiFlexItem>
+  //       <EuiFormRow style={formRowPadding}>
+  //         <EuiFieldNumber
+  //           disabled={disabled}
+  //           min={1}
+  //           max={180}
+  //           value={value}
+  //           onChange={onDeleteAfterDaysChange}
+  //         />
+  //       </EuiFormRow>
+  //     </EuiFlexItem>
+  //   );
+  // };
 
   return (
     <div>
@@ -313,25 +335,6 @@ const Configuration = ({
                               />
                             </EuiFlexItem>
                           </EuiFlexGroup>
-                        </EuiFormRow>
-                      </EuiFlexItem>
-                      <EuiFlexItem>
-                        <EuiText size="xs">
-                          <h3>Exporter</h3>
-                        </EuiText>
-                        <EuiText size="xs" style={textPadding}>
-                          {`Configure exporter for ${metric}.`}
-                        </EuiText>
-                      </EuiFlexItem>
-                      <EuiFlexItem>
-                        <EuiFormRow style={formRowPadding}>
-                          <EuiSelect
-                            id="exporterType"
-                            required={true}
-                            options={EXPORTER_TYPES_LIST}
-                            value={exporterType}
-                            onChange={onExporterTypeChange}
-                          />
                         </EuiFormRow>
                       </EuiFlexItem>
                     </>
@@ -449,7 +452,7 @@ const Configuration = ({
               <EuiFlexItem>
                 <EuiTitle size="s">
                   <EuiText size="s">
-                    <h2>Query Insights data retention settings</h2>
+                    <h2>Query Insights export and data retention settings</h2>
                   </EuiText>
                 </EuiTitle>
               </EuiFlexItem>
@@ -457,18 +460,38 @@ const Configuration = ({
                 <EuiFlexGrid columns={2} gutterSize="s" style={{ padding: '15px 0px' }}>
                   <EuiFlexItem>
                     <EuiText size="xs">
+                      <h3>Exporter</h3>
+                    </EuiText>
+                    <EuiText size="xs" style={textPadding}>
+                      Configure a sink for exporting Query Insights data.
+                    </EuiText>
+                  </EuiFlexItem>
+                  <EuiFlexItem>
+                    <EuiFormRow style={formRowPadding}>
+                      <EuiSelect
+                        id="exporterType"
+                        required={true}
+                        options={EXPORTER_TYPES_LIST}
+                        value={exporterType}
+                        onChange={onExporterTypeChange}
+                      />
+                    </EuiFormRow>
+                  </EuiFlexItem>
+                  <EuiFlexItem>
+                    <EuiText size="xs">
                       <h3>Delete After (days)</h3>
                     </EuiText>
                     <EuiText size="xs" style={textPadding}>
-                      Delete the Query Insights data after certain days.
+                      Number of days to retain Query Insights data.
                     </EuiText>
                   </EuiFlexItem>
                   <EuiFlexItem>
                     <EuiFormRow style={formRowPadding}>
                       <EuiFieldNumber
+                        disabled={exporterType !== EXPORTER_TYPE.localIndex}
                         min={1}
                         max={180}
-                        value={deleteAfterDays}
+                        value={exporterType !== EXPORTER_TYPE.localIndex ? '' : deleteAfterDays}
                         onChange={onDeleteAfterDaysChange}
                       />
                     </EuiFormRow>
@@ -483,18 +506,18 @@ const Configuration = ({
             <EuiFlexItem>
               <EuiTitle size="s">
                 <EuiText size="s">
-                  <h2>Statuses for data retention settings</h2>
+                  <h2>Statuses for data retention</h2>
                 </EuiText>
               </EuiTitle>
             </EuiFlexItem>
             <EuiFlexItem>
               <EuiFlexGroup>
                 <EuiFlexItem>
-                  <EuiText size="m">Delete After</EuiText>
+                  <EuiText size="m">Exporter</EuiText>
                 </EuiFlexItem>
                 <EuiFlexItem>
                   <EuiSpacer size="xs" />
-                  {deleteAfterDaysSettings.deleteAfterDays ? enabledSymb : disabledSymb}
+                  {exporterType === EXPORTER_TYPE.localIndex ? enabledSymb : disabledSymb}
                 </EuiFlexItem>
               </EuiFlexGroup>
             </EuiFlexItem>
