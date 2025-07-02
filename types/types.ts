@@ -78,6 +78,8 @@ export interface LiveSearchQueryRecord {
   };
   node_id: string;
   is_cancelled: boolean;
+  index?: string;
+  search_type?: string;
 }
 
 export interface LiveSearchQueryResponse {
@@ -85,4 +87,5 @@ export interface LiveSearchQueryResponse {
   response: {
     live_queries: LiveSearchQueryRecord[];
   };
+  error?: string;
 }

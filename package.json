@@ -36,9 +36,6 @@
     "filesize": "^10.1.6",
     "object-hash": "^3.0.0",
     "plotly.js-dist": "^2.34.0",
-    "vega": "^5.32.0",
-    "vega-embed": "6.21.0",
-    "vega-lite": "^5.6.0",
     "luxon": "^3.2.1"
   },
   "resolutions": {

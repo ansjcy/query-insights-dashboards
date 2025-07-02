@@ -18,14 +18,23 @@ import {
   EuiInMemoryTable,
   EuiButton,
 } from '@elastic/eui';
-import embed from 'vega-embed';
-import type { VisualizationSpec } from 'vega-embed';
+import {
+  Chart,
+  Axis,
+  Settings,
+  Position,
+  BarSeries,
+  ScaleType,
+  Partition,
+  PartitionLayout,
+} from '@elastic/charts';
 import { Duration } from 'luxon';
 import { filesize } from 'filesize';
 import { AppMountParameters, CoreStart } from 'opensearch-dashboards/public';
 import { DataSourceManagementPluginSetup } from 'src/plugins/data_source_management/public';
 import { useContext } from 'react';
 import { LiveSearchQueryResponse } from '../../../types/types';
+import type { LiveSearchQueryRecord } from '../../../types/types';
 import { retrieveLiveQueries } from '../../../common/utils/QueryUtils';
 import { API_ENDPOINTS } from '../../../common/utils/apiendpoints';
 import { QueryInsightsDashboardsPluginStartDependencies } from '../../types';
@@ -55,9 +64,6 @@ export const InflightQueries = ({
 
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(DEFAULT_REFRESH_INTERVAL);
-
-  const chartRefByNode = useRef<HTMLDivElement>(null);
-  const chartRefByIndex = useRef<HTMLDivElement>(null);
 
   const liveQueries = query?.response?.live_queries ?? [];
 
@@ -251,100 +257,57 @@ export const InflightQueries = ({
     };
   }, [query]);
 
-  const getChartData = (counts: Record<string, number>, type: 'node' | 'index') => {
-    return Object.entries(counts).map(([key, value]) => ({
-      label: type === 'node' ? `${key}` : key,
-      value,
-    }));
-  };
+  /**
+   * Helper to render either a bar or donut (partition) chart using Elastic Charts.
+   */
+  const renderChart = (
+    counts: Record<string, number>,
+    chartType: 'donut' | 'bar',
+    labelType: 'node' | 'index'
+  ) => {
+    const data = Object.entries(counts).map(([key, value]) => ({ key, value }));
 
-  const getChartSpec = (type: string, chartType: 'node' | 'index'): VisualizationSpec => {
-    const isDonut = type.includes('donut');
-
-    return {
-      width: 400,
-      height: 300,
-      mark: isDonut ? { type: 'arc', innerRadius: 50 } : { type: 'bar' },
-      encoding: isDonut
-        ? {
-            theta: { field: 'value', type: 'quantitative' },
-            color: {
-              field: 'label',
-              type: 'nominal',
-              title: chartType === 'node' ? 'Nodes' : 'Indices',
-            },
-            tooltip: [
-              { field: 'label', type: 'nominal', title: chartType === 'node' ? 'Node' : 'Index' },
-              { field: 'value', type: 'quantitative', title: 'Count' },
-            ],
-          }
-        : {
-            x: {
-              field: 'label',
-              type: 'nominal',
-              axis: { labelAngle: -45, title: chartType === 'node' ? 'Node' : 'Index' },
-            },
-            y: {
-              field: 'value',
-              type: 'quantitative',
-              axis: { title: 'Count' },
-            },
-            color: {
-              field: 'label',
-              type: 'nominal',
-              title: chartType === 'node' ? 'Node' : 'Index',
-            },
-            tooltip: [
-              { field: 'label', type: 'nominal', title: chartType === 'node' ? 'Node' : 'Index' },
-              { field: 'value', type: 'quantitative', title: 'Count' },
-            ],
-          },
-    };
-  };
-
-  useEffect(() => {
-    if (chartRefByNode.current) {
-      embed(
-        chartRefByNode.current,
-        {
-          ...getChartSpec(selectedChartIdByNode, 'node'),
-          data: { values: getChartData(nodeCounts, 'node') },
-        },
-        { actions: false, renderer: 'svg' }
-      )
-        .then(() => setNodeChartError(null))
-        .catch((error) => {
-          console.error('Node chart rendering failed:', error);
-          setNodeChartError('Failed to load chart data');
-          core.notifications.toasts.addError(error, {
-            title: 'Failed to render Queries by Node chart',
-            toastMessage: 'Please check data or browser console for details.',
-          });
-        });
+    if (chartType === 'bar') {
+      return (
+        <Chart size={{ height: 300 }}>
+          <Settings showLegend legendPosition={Position.Right} />
+          <Axis
+            id={`${labelType}-bottom-axis`}
+            position={Position.Bottom}
+            title={labelType === 'node' ? 'Node' : 'Index'}
+          />
+          <Axis id={`${labelType}-left-axis`} position={Position.Left} title={'Count'} />
+          <BarSeries
+            id={`${labelType}-bar`}
+            xScaleType={ScaleType.Ordinal}
+            yScaleType={ScaleType.Linear}
+            xAccessor={'key'}
+            yAccessors={['value']}
+            data={data}
+          />
+        </Chart>
+      );
     }
-  }, [nodeCounts, selectedChartIdByNode]);
 
-  useEffect(() => {
-    if (chartRefByIndex.current) {
-      embed(
-        chartRefByIndex.current,
-        {
-          ...getChartSpec(selectedChartIdByIndex, 'index'),
-          data: { values: getChartData(indexCounts, 'index') },
-        },
-        { actions: false, renderer: 'svg' }
-      )
-        .then(() => setIndexChartError(null))
-        .catch((error) => {
-          console.error('Index chart rendering failed:', error);
-          setIndexChartError('Failed to load chart data');
-          core.notifications.toasts.addError(error, {
-            title: 'Failed to render Queries by Index chart',
-            toastMessage: 'Please check data or browser console for details.',
-          });
-        });
-    }
-  }, [indexCounts, selectedChartIdByIndex]);
+    // Donut / pie chart
+    return (
+      <Chart size={{ height: 300 }}>
+        <Settings showLegend legendPosition={Position.Right} />
+        <Partition
+          id={`${labelType}-partition`}
+          data={data}
+          valueAccessor={(d) => d.value}
+          layers={[
+            {
+              groupByRollup: (d: { key: string; value: number }) => d.key,
+              nodeLabel: (d) => `${d}`,
+            },
+          ]}
+          config={{ partitionLayout: PartitionLayout.sunburst, emptySizeRatio: 0.4 }}
+        />
+      </Chart>
+    );
+  };
 
   return (
     <div>
@@ -524,11 +487,9 @@ export const InflightQueries = ({
             </EuiFlexGroup>
             <EuiSpacer size="l" />
             {Object.keys(nodeCounts).length > 0 && !nodeChartError ? (
-              <div
-                ref={chartRefByNode}
-                data-test-subj="vega-chart-node"
-                data-chart-values={JSON.stringify(getChartData(nodeCounts, 'node'))}
-              />
+              <div data-test-subj="elastic-chart-node">
+                {renderChart(nodeCounts, selectedChartIdByNode as 'donut' | 'bar', 'node')}
+              </div>
             ) : nodeChartError ? (
               <EuiTextAlign textAlign="center">
                 <EuiSpacer size="xl" />
@@ -566,11 +527,9 @@ export const InflightQueries = ({
             </EuiFlexGroup>
             <EuiSpacer size="l" />
             {Object.keys(indexCounts).length > 0 && !indexChartError ? (
-              <div
-                ref={chartRefByIndex}
-                data-test-subj="vega-chart-index"
-                data-chart-values={JSON.stringify(getChartData(indexCounts, 'index'))}
-              />
+              <div data-test-subj="elastic-chart-index">
+                {renderChart(indexCounts, selectedChartIdByIndex as 'donut' | 'bar', 'index')}
+              </div>
             ) : indexChartError ? (
               <EuiTextAlign textAlign="center">
                 <EuiSpacer size="xl" />
@@ -600,7 +559,7 @@ export const InflightQueries = ({
               placeholder: 'Search queries',
               schema: false,
             },
-            toolsLeft: selectedItems.length > 0 && [
+            toolsLeft: selectedItems.length > 0 ? [
               <EuiButton
                 key="delete-button"
                 color="danger"
@@ -608,14 +567,14 @@ export const InflightQueries = ({
                 disabled={selectedItems.length === 0}
                 onClick={async () => {
                   const httpClient = dataSource?.id
-                    ? depsStart.data.dataSources.get(dataSource.id)
+                    ? (depsStart as any).data.dataSources.get(dataSource.id)
                     : core.http;
 
                   await Promise.allSettled(
                     selectedItems.map((item) =>
                       httpClient.post(API_ENDPOINTS.CANCEL_TASK(item.id)).then(
                         () => ({ status: 'fulfilled', id: item.id }),
-                        (err) => ({ status: 'rejected', id: item.id, error: err })
+                        (err: any) => ({ status: 'rejected', id: item.id, error: err })
                       )
                     )
                   );
@@ -624,7 +583,7 @@ export const InflightQueries = ({
               >
                 Cancel {selectedItems.length} {selectedItems.length !== 1 ? 'queries' : 'query'}
               </EuiButton>,
-            ],
+            ] : undefined,
             toolsRight: [
               <EuiButton
                 key="refresh-button"
@@ -642,58 +601,67 @@ export const InflightQueries = ({
                 field: 'index',
                 name: 'Index',
                 multiSelect: 'or',
-                options: [...new Set(liveQueries.map((q) => q.index))].map((val) => ({
-                  value: val,
-                  name: val,
-                  view: val,
-                })),
+                options: [...new Set(liveQueries.map((q) => q.index ?? ''))]
+                  .filter((val) => val)
+                  .map((val) => ({
+                    value: val,
+                    name: val,
+                    view: val,
+                  })),
               },
               {
                 type: 'field_value_selection',
                 field: 'search_type',
                 name: 'Search type',
                 multiSelect: 'or',
-                options: [...new Set(liveQueries.map((q) => q.search_type))].map((val) => ({
-                  value: val,
-                  name: val,
-                  view: val,
-                })),
+                options: [...new Set(liveQueries.map((q) => q.search_type ?? ''))]
+                  .filter((val) => val)
+                  .map((val) => ({
+                    value: val,
+                    name: val,
+                    view: val,
+                  })),
               },
               {
                 type: 'field_value_selection',
                 field: 'coordinator_node',
                 name: 'Coordinator Node ID',
                 multiSelect: 'or',
-                options: [...new Set(liveQueries.map((q) => q.node_id))].map((val) => ({
-                  value: val,
-                  name: val,
-                  view: val,
-                })),
+                options: [...new Set(liveQueries.map((q) => q.node_id ?? ''))]
+                  .filter((val) => val)
+                  .map((val) => ({
+                    value: val,
+                    name: val,
+                    view: val,
+                  })),
               },
             ],
           }}
           columns={[
-            { name: 'Timestamp', render: (item) => convertTime(item.timestamp) },
+            { name: 'Timestamp', render: (item: LiveSearchQueryRecord) => convertTime(item.timestamp) },
             { field: 'id', name: 'Task ID' },
             { field: 'index', name: 'Index' },
             { field: 'coordinator_node', name: 'Coordinator node' },
             {
               name: 'Time elapsed',
-              render: (item) => formatTime(item.measurements?.latency?.number / 1e9),
+              render: (item: LiveSearchQueryRecord) =>
+                formatTime((item.measurements?.latency?.number ?? 0) / 1e9),
             },
             {
               name: 'CPU usage',
-              render: (item) => formatTime(item.measurements?.cpu?.number / 1e9),
+              render: (item: LiveSearchQueryRecord) =>
+                formatTime((item.measurements?.cpu?.number ?? 0) / 1e9),
             },
             {
               name: 'Memory usage',
-              render: (item) => formatMemory(item.measurements?.memory?.number),
+              render: (item: LiveSearchQueryRecord) =>
+                formatMemory(item.measurements?.memory?.number ?? 0),
             },
             { field: 'search_type', name: 'Search type' },
 
             {
               name: 'Status',
-              render: (item) =>
+              render: (item: LiveSearchQueryRecord) =>
                 item.is_cancelled === true ? (
                   <EuiText color="danger">
                     <b>Cancelled</b>
@@ -714,11 +682,11 @@ export const InflightQueries = ({
                   icon: 'trash',
                   color: 'danger',
                   type: 'icon',
-                  available: (item) => item.is_cancelled !== true,
-                  onClick: async (item) => {
+                  available: (item: LiveSearchQueryRecord) => item.is_cancelled !== true,
+                  onClick: async (item: LiveSearchQueryRecord) => {
                     try {
                       const httpClient = dataSource?.id
-                        ? depsStart.data.dataSources.get(dataSource.id)
+                        ? (depsStart as any).data.dataSources.get(dataSource.id)
                         : core.http;
 
                       await httpClient.post(API_ENDPOINTS.CANCEL_TASK(item.id));
