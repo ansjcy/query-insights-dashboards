@@ -152,19 +152,6 @@ export const IntelligentInsights: React.FC<IntelligentInsightsProps> = ({
 
   return (
     <EuiPage>
-      <PageHeader
-        coreStart={core}
-        depsStart={depsStart}
-        fallBackComponent={
-          <>
-            <EuiTitle size="l">
-              <h1>Query Insights - Intelligent Insights</h1>
-            </EuiTitle>
-            <EuiSpacer size="l" />
-          </>
-        }
-      />
-      
       <EuiPageContent>
         <EuiResizableContainer style={{ height: '80vh' }}>
           {(EuiResizablePanel, EuiResizableButton) => (
