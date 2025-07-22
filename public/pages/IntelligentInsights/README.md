@@ -2,7 +2,7 @@
 
 ## Task Summary
 
-**Objective**: Implement the same functionality and similar frontend from `OpenSearch-Intelligent-Insights/src/open_search_intelligent_insights/frontend/` in OpenSearch-Dashboards format for query insights dashboards, placing it parallel to the `public/pages/TopNQueries/` page.
+**Objective**: Implement the same functionality and similar frontend from `ref/OpenSearch-Intelligent-Insights/src/open_search_intelligent_insights/frontend/` in OpenSearch-Dashboards format for query insights dashboards, placing it parallel to the `public/pages/TopNQueries/` page.
 
 ## What Was Done
 

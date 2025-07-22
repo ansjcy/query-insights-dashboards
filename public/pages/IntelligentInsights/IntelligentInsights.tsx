@@ -79,9 +79,6 @@ export const IntelligentInsights: React.FC<IntelligentInsightsProps> = ({
   const renderWelcomeContent = () => (
     <EuiFlexGroup direction="column" alignItems="center" justifyContent="center" style={{ height: '60vh' }}>
       <EuiFlexItem grow={false}>
-        <EuiIcon type="discuss" size="xxl" color="subdued" />
-      </EuiFlexItem>
-      <EuiFlexItem grow={false}>
         <EuiTitle size="m">
           <h2>Welcome to Intelligent Insights Agent</h2>
         </EuiTitle>

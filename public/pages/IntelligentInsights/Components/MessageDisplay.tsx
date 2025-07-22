@@ -23,15 +23,33 @@ export const MessageDisplay: React.FC<MessageDisplayProps> = ({ message }) => {
   const isHuman = message.type === 'human';
   const isAI = message.type === 'ai';
 
-  const renderContent = () => {
+  const getMessageContent = () => {
     if (typeof message.content === 'string') {
-      return isAI ? (
-        <EuiMarkdownFormat>{message.content}</EuiMarkdownFormat>
-      ) : (
-        <EuiText>{message.content}</EuiText>
-      );
+      return message.content;
     }
-    return <EuiText>{JSON.stringify(message.content)}</EuiText>;
+
+    // Handle LangChain AIMessage array format
+    if (Array.isArray(message.content) && message.content.length > 0) {
+      const lastContent = message.content[message.content.length - 1];
+      if (lastContent && lastContent.text) {
+        return lastContent.text;
+      }
+    }
+
+    if (message.content?.text) {
+      return message.content.text;
+    }
+
+    return JSON.stringify(message.content);
+  };
+
+  const renderContent = () => {
+    const content = getMessageContent();
+    return isAI ? (
+      <EuiMarkdownFormat>{content}</EuiMarkdownFormat>
+    ) : (
+      <EuiText>{content}</EuiText>
+    );
   };
 
   return (
