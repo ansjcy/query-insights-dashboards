@@ -15,6 +15,7 @@ import QueryDetails from '../QueryDetails/QueryDetails';
 import { InflightQueries } from '../InflightQueries/InflightQueries';
 import { SearchQueryRecord } from '../../../types/types';
 import { QueryGroupDetails } from '../QueryGroupDetails/QueryGroupDetails';
+import { IntelligentInsights } from '../IntelligentInsights/IntelligentInsights';
 import { QueryInsightsDashboardsPluginStartDependencies } from '../../types';
 import { PageHeader } from '../../components/PageHeader';
 import {
@@ -40,6 +41,7 @@ import { getDataSourceFromUrl } from '../../utils/datasource-utils';
 export const QUERY_INSIGHTS = '/queryInsights';
 export const CONFIGURATION = '/configuration';
 export const LIVE_QUERIES = '/LiveQueries';
+export const INTELLIGENT_INSIGHTS = '/intelligentInsights';
 
 export interface MetricSettings {
   isEnabled: boolean;
@@ -142,6 +144,11 @@ const TopNQueries = ({
       id: 'topNQueries',
       name: 'Top N queries',
       route: QUERY_INSIGHTS,
+    },
+    {
+      id: 'intelligentInsights',
+      name: 'Intelligent Insights',
+      route: INTELLIGENT_INSIGHTS,
     },
     {
       id: 'configuration',
@@ -449,6 +456,14 @@ const TopNQueries = ({
               depsStart={depsStart}
               params={params}
               retrieveQueries={retrieveQueries}
+              dataSourceManagement={dataSourceManagement}
+            />
+          </Route>
+          <Route exact path={INTELLIGENT_INSIGHTS}>
+            <IntelligentInsights
+              core={core}
+              depsStart={depsStart}
+              params={params}
               dataSourceManagement={dataSourceManagement}
             />
           </Route>
