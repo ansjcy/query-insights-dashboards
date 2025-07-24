@@ -80,7 +80,7 @@ export const IntelligentInsights: React.FC<IntelligentInsightsProps> = ({
     <EuiFlexGroup direction="column" alignItems="center" justifyContent="center" style={{ height: '60vh' }}>
       <EuiFlexItem grow={false}>
         <EuiTitle size="m">
-          <h2>Welcome to Intelligent Insights Agent</h2>
+          <h2>Welcome to Query Performance Advisor</h2>
         </EuiTitle>
       </EuiFlexItem>
       <EuiFlexItem grow={false}>

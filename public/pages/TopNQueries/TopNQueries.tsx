@@ -16,6 +16,7 @@ import { InflightQueries } from '../InflightQueries/InflightQueries';
 import { SearchQueryRecord } from '../../../types/types';
 import { QueryGroupDetails } from '../QueryGroupDetails/QueryGroupDetails';
 import { IntelligentInsights } from '../IntelligentInsights/IntelligentInsights';
+import { IntelligentAlerts } from '../IntelligentAlerts/IntelligentAlerts';
 import { QueryInsightsDashboardsPluginStartDependencies } from '../../types';
 import { PageHeader } from '../../components/PageHeader';
 import {
@@ -41,7 +42,8 @@ import { getDataSourceFromUrl } from '../../utils/datasource-utils';
 export const QUERY_INSIGHTS = '/queryInsights';
 export const CONFIGURATION = '/configuration';
 export const LIVE_QUERIES = '/LiveQueries';
-export const INTELLIGENT_INSIGHTS = '/intelligentInsights';
+export const PERFORMANCE_ADVISOR = '/performanceAdvisor';
+export const INTELLIGENT_ALERTS = '/intelligentAlerts';
 
 export interface MetricSettings {
   isEnabled: boolean;
@@ -146,9 +148,14 @@ const TopNQueries = ({
       route: QUERY_INSIGHTS,
     },
     {
-      id: 'intelligentInsights',
-      name: 'Intelligent Insights',
-      route: INTELLIGENT_INSIGHTS,
+      id: 'performanceAdvisor',
+      name: 'Performance Advisor',
+      route: PERFORMANCE_ADVISOR,
+    },
+    {
+      id: 'intelligentAlerts',
+      name: 'Intelligent Alerts',
+      route: INTELLIGENT_ALERTS,
     },
     {
       id: 'configuration',
@@ -459,8 +466,44 @@ const TopNQueries = ({
               dataSourceManagement={dataSourceManagement}
             />
           </Route>
-          <Route exact path={INTELLIGENT_INSIGHTS}>
+          <Route exact path={PERFORMANCE_ADVISOR}>
+            <PageHeader
+              coreStart={core}
+              depsStart={depsStart}
+              fallBackComponent={
+                <>
+                  <EuiTitle size="l">
+                    <h1>Query insights - Performance Advisor</h1>
+                  </EuiTitle>
+                  <EuiSpacer size="l" />
+                </>
+              }
+            />
+            <EuiTabs>{tabs.map(renderTab)}</EuiTabs>
+            <EuiSpacer size="l" />
             <IntelligentInsights
+              core={core}
+              depsStart={depsStart}
+              params={params}
+              dataSourceManagement={dataSourceManagement}
+            />
+          </Route>
+          <Route path={INTELLIGENT_ALERTS}>
+            <PageHeader
+              coreStart={core}
+              depsStart={depsStart}
+              fallBackComponent={
+                <>
+                  <EuiTitle size="l">
+                    <h1>Query insights - Intelligent Alerts</h1>
+                  </EuiTitle>
+                  <EuiSpacer size="l" />
+                </>
+              }
+            />
+            <EuiTabs>{tabs.map(renderTab)}</EuiTabs>
+            <EuiSpacer size="l" />
+            <IntelligentAlerts
               core={core}
               depsStart={depsStart}
               params={params}

@@ -1,0 +1,9 @@
+org.opensearch.alerting.util.AlertingException: class java.lang.String cannot be cast to class java.util.Map (java.lang.String and java.util.Map are in module java.base of loader 'bootstrap')
+    at org.opensearch.alerting.util.AlertingException$Companion.wrap(AlertingException.kt:70) ~[?:?]
+    at org.opensearch.alerting.transport.TransportIndexMonitorAction$IndexMonitorHandler.indexMonitor(TransportIndexMonitorAction.kt:512) ~[?:?]
+    at org.opensearch.alerting.transport.TransportIndexMonitorAction$IndexMonitorHandler.access$indexMonitor(TransportIndexMonitorAction.kt:239) ~[?:?]
+    at org.opensearch.alerting.transport.TransportIndexMonitorAction$IndexMonitorHandler$indexMonitor$1.invokeSuspend(TransportIndexMonitorAction.kt) ~[?:?]
+    at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33) ~[?:?]
+    at kotlinx.coroutines.DispatchedTask.run(Dispatched.kt:233) ~[?:?]
+    at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:594) ~[?:?]
+    at kotlinx.coroutines.scheduling.CoroutineScheduler.access$runSafely(CoroutineScheduler.kt:60) ~[?:?]

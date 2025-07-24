@@ -1,0 +1,12 @@
+org.opensearch.client.opensearch._types.OpenSearchException: Request failed: [security_exception] authentication/authorization failure
+	at org.opensearch.client.transport.aws.AwsSdk2Transport.parseResponse(AwsSdk2Transport.java:517) ~[opensearch-java-2.2.0.jar:?]
+	at org.opensearch.client.transport.aws.AwsSdk2Transport.executeSync(AwsSdk2Transport.java:438) ~[opensearch-java-2.2.0.jar:?]
+	at org.opensearch.client.transport.aws.AwsSdk2Transport.performRequest(AwsSdk2Transport.java:241) ~[opensearch-java-2.2.0.jar:?]
+	at org.opensearch.client.opensearch.cluster.OpenSearchClusterClient.getSettings(OpenSearchClusterClient.java:282) ~[opensearch-java-2.2.0.jar:?]
+	at org.opensearch.dataprepper.plugins.sink.opensearch.index.AbstractIndexManager.checkISMEnabled(AbstractIndexManager.java:187) ~[opensearch-2.2.1.jar:?]
+	at org.opensearch.dataprepper.plugins.sink.opensearch.index.AbstractIndexManager.checkAndCreateIndexTemplate(AbstractIndexManager.java:208) ~[opensearch-2.2.1.jar:?]
+	at org.opensearch.dataprepper.plugins.sink.opensearch.index.AbstractIndexManager.setupIndex(AbstractIndexManager.java:203) ~[opensearch-2.2.1.jar:?]
+	at org.opensearch.dataprepper.plugins.sink.opensearch.OpenSearchSink.doInitializeInternal(OpenSearchSink.java:174) ~[opensearch-2.2.1.jar:?]
+	at org.opensearch.dataprepper.plugins.sink.opensearch.OpenSearchSink.doInitialize(OpenSearchSink.java:139) ~[opensearch-2.2.1.jar:?]
+	at org.opensearch.dataprepper.model.sink.SinkThread.run(SinkThread.java:23) ~[data-prepper-api-2.2.1.jar:?]
+	at java.lang.Thread.run(Thread.java:829) [?:?]

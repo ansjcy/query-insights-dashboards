@@ -1,0 +1,10 @@
+java.nio.file.AccessDeniedException: /usr/share/opensearch/data/nodes
+    at org.opensearch.bootstrap.Bootstrap.setup(Bootstrap.java:242)
+    at org.opensearch.bootstrap.Bootstrap.init(Bootstrap.java:404)
+    at org.opensearch.bootstrap.OpenSearch.init(OpenSearch.java:180)
+    at org.opensearch.bootstrap.OpenSearch.execute(OpenSearch.java:171)
+    at org.opensearch.cli.EnvironmentAwareCommand.execute(EnvironmentAwareCommand.java:104)
+    at org.opensearch.cli.Command.mainWithoutErrorHandling(Command.java:138)
+    at org.opensearch.cli.Command.main(Command.java:101)
+    at org.opensearch.bootstrap.OpenSearch.main(OpenSearch.java:137)
+    at org.opensearch.bootstrap.OpenSearch.main(OpenSearch.java:103)
