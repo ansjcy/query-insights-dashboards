@@ -36,15 +36,18 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Generate sequence steps and actors based on error type
-  const generateSequenceData = (error: ErrorRecord): { actors: Actor[], steps: SequenceStep[] } => {
+  const generateSequenceData = (error: ErrorRecord, containerWidth: number = 800): { actors: Actor[], steps: SequenceStep[] } => {
+    // Calculate responsive actor positions based on container width
+    const actorSpacing = Math.max(150, containerWidth / 5);
+    const startX = Math.max(100, containerWidth * 0.1);
     switch (error.category) {
       case 'Search Query Execution':
         return {
           actors: [
-            { name: 'RestSearchAction', x: 150 },
-            { name: 'SearchService', x: 350 },
-            { name: 'QueryPhase', x: 550 },
-            { name: 'DataNode', x: 750 }
+            { name: 'RestSearchAction', x: startX },
+            { name: 'SearchService', x: startX + actorSpacing },
+            { name: 'QueryPhase', x: startX + actorSpacing * 2 },
+            { name: 'DataNode', x: startX + actorSpacing * 3 }
           ],
           steps: [
             { from: 0, to: 1, message: '1. prepareRequest()', y: 100, type: 'success' },
@@ -59,10 +62,10 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       case 'Query Parsing':
         return {
           actors: [
-            { name: 'RestSearchAction', x: 150 },
-            { name: 'SearchSourceBuilder', x: 350 },
-            { name: 'BoolQueryBuilder', x: 550 },
-            { name: 'QueryParseContext', x: 750 }
+            { name: 'RestSearchAction', x: startX },
+            { name: 'SearchSourceBuilder', x: startX + actorSpacing },
+            { name: 'BoolQueryBuilder', x: startX + actorSpacing * 2 },
+            { name: 'QueryParseContext', x: startX + actorSpacing * 3 }
           ],
           steps: [
             { from: 0, to: 1, message: '1. prepareRequest()', y: 100, type: 'success' },
@@ -77,10 +80,10 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       case 'Query Performance':
         return {
           actors: [
-            { name: 'SearchTransport', x: 150 },
-            { name: 'SearchService', x: 350 },
-            { name: 'WildcardQuery', x: 550 },
-            { name: 'IndexSearcher', x: 750 }
+            { name: 'SearchTransport', x: startX },
+            { name: 'SearchService', x: startX + actorSpacing },
+            { name: 'WildcardQuery', x: startX + actorSpacing * 2 },
+            { name: 'IndexSearcher', x: startX + actorSpacing * 3 }
           ],
           steps: [
             { from: 0, to: 1, message: '1. messageReceived()', y: 100, type: 'success' },
@@ -95,10 +98,10 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       case 'Memory Management':
         return {
           actors: [
-            { name: 'SearchService', x: 150 },
-            { name: 'StringTermsAggregator', x: 350 },
-            { name: 'FieldDataCache', x: 550 },
-            { name: 'CircuitBreaker', x: 750 }
+            { name: 'SearchService', x: startX },
+            { name: 'StringTermsAggregator', x: startX + actorSpacing },
+            { name: 'FieldDataCache', x: startX + actorSpacing * 2 },
+            { name: 'CircuitBreaker', x: startX + actorSpacing * 3 }
           ],
           steps: [
             { from: 0, to: 1, message: '1. executeQueryPhase()', y: 100, type: 'success' },
@@ -113,10 +116,10 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       case 'Script Execution':
         return {
           actors: [
-            { name: 'SearchService', x: 150 },
-            { name: 'ScriptService', x: 350 },
-            { name: 'PainlessScriptEngine', x: 550 },
-            { name: 'Compiler', x: 750 }
+            { name: 'SearchService', x: startX },
+            { name: 'ScriptService', x: startX + actorSpacing },
+            { name: 'PainlessScriptEngine', x: startX + actorSpacing * 2 },
+            { name: 'Compiler', x: startX + actorSpacing * 3 }
           ],
           steps: [
             { from: 0, to: 1, message: '1. executeQueryPhase()', y: 100, type: 'success' },
@@ -131,10 +134,10 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       case 'Query Complexity':
         return {
           actors: [
-            { name: 'SearchService', x: 150 },
-            { name: 'QueryPhase', x: 350 },
-            { name: 'BoolQueryBuilder', x: 550 },
-            { name: 'LuceneQuery', x: 750 }
+            { name: 'SearchService', x: startX },
+            { name: 'QueryPhase', x: startX + actorSpacing },
+            { name: 'BoolQueryBuilder', x: startX + actorSpacing * 2 },
+            { name: 'LuceneQuery', x: startX + actorSpacing * 3 }
           ],
           steps: [
             { from: 0, to: 1, message: '1. executeQueryPhase()', y: 100, type: 'success' },
@@ -149,10 +152,10 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       case 'Indexing Conflicts':
         return {
           actors: [
-            { name: 'BulkProcessor', x: 150 },
-            { name: 'IndexShard', x: 350 },
-            { name: 'InternalEngine', x: 550 },
-            { name: 'DocumentStore', x: 750 }
+            { name: 'BulkProcessor', x: startX },
+            { name: 'IndexShard', x: startX + actorSpacing },
+            { name: 'InternalEngine', x: startX + actorSpacing * 2 },
+            { name: 'DocumentStore', x: startX + actorSpacing * 3 }
           ],
           steps: [
             { from: 0, to: 1, message: '1. executeBulkRequest()', y: 100, type: 'success' },
@@ -167,9 +170,9 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       default:
         return {
           actors: [
-            { name: 'Client', x: 200 },
-            { name: 'Service', x: 500 },
-            { name: 'Backend', x: 800 }
+            { name: 'Client', x: startX },
+            { name: 'Service', x: startX + actorSpacing },
+            { name: 'Backend', x: startX + actorSpacing * 2 }
           ],
           steps: [
             { from: 0, to: 1, message: '1. request()', y: 100, type: 'success' },
@@ -184,15 +187,21 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
   useEffect(() => {
     if (!svgRef.current) return;
 
-    // Clear previous render
-    const svg = svgRef.current;
-    while (svg.firstChild) {
-      svg.removeChild(svg.firstChild);
-    }
+    const renderDiagram = () => {
+      const svg = svgRef.current;
+      if (!svg) return;
 
-    const { actors, steps } = generateSequenceData(error);
-    const width = 1200;
-    const height = Math.max(600, steps[steps.length - 1]?.y + 150 || 600);
+      // Clear previous render
+      while (svg.firstChild) {
+        svg.removeChild(svg.firstChild);
+      }
+
+      // Get the actual container width and use it, with a minimum width
+      const containerWidth = svg.parentElement?.clientWidth || 800;
+      const width = Math.max(containerWidth, 800);
+      
+      const { actors, steps } = generateSequenceData(error, width);
+      const height = Math.max(600, steps[steps.length - 1]?.y + 150 || 600);
 
     // Set SVG dimensions
     svg.setAttribute('width', width.toString());
@@ -346,10 +355,26 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       legendText.textContent = item.label;
       legend.appendChild(legendText);
     });
+    };
 
+    // Initial render
+    renderDiagram();
+
+    // Add resize listener for responsiveness
+    const handleResize = () => {
+      // Use setTimeout to debounce resize events
+      setTimeout(renderDiagram, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, [error]);
 
-  const { steps } = generateSequenceData(error);
+  const { steps } = generateSequenceData(error, 800);
 
   return (
     <EuiPanel paddingSize="l" style={{ height: '100%' }}>
@@ -385,7 +410,7 @@ export const SequenceDiagram: React.FC<SequenceDiagramProps> = ({ error }) => {
       <EuiSpacer />
 
       <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #ddd', borderRadius: '4px', backgroundColor: 'white' }}>
-        <svg ref={svgRef} style={{ display: 'block' }}></svg>
+        <svg ref={svgRef} style={{ display: 'block', width: '100%', height: 'auto' }}></svg>
       </div>
 
     </EuiPanel>

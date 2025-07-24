@@ -21,7 +21,9 @@ import {
 import { LatencyRecord } from '../utils/dataLoader';
 import { QueryExecutionWaterfall } from './QueryExecutionWaterfall';
 import { ShardHeatMap } from './ShardHeatMap';
-import { HistoricalLatencyChart } from './HistoricalLatencyChart';
+import { CPUUtilizationChart } from './CPUUtilizationChart';
+import { QueryLatencyChart } from './QueryLatencyChart';
+import { JVMUsageChart } from './JVMUsageChart';
 import { QueryOptimizationPanel } from './QueryOptimizationPanel';
 
 interface LatencyDetailViewProps {
@@ -100,7 +102,7 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiTitle size="l">
-            <h1>Query Latency Analysis</h1>
+            <h1>Query Latency Alerts</h1>
           </EuiTitle>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
@@ -143,8 +145,18 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
 
       <EuiSpacer size="l" />
 
-      {/* Historical Latency Trend */}
-      <HistoricalLatencyChart record={record} />
+      {/* Query Latency Chart */}
+      <QueryLatencyChart />
+
+      <EuiSpacer size="l" />
+
+      {/* CPU Utilization Chart */}
+      <CPUUtilizationChart record={record} />
+
+      <EuiSpacer size="l" />
+
+      {/* JVM Memory Usage Chart */}
+      <JVMUsageChart />
 
       <EuiSpacer size="l" />
 
