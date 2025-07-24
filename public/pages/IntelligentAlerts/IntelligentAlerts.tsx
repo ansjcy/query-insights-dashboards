@@ -63,7 +63,7 @@ export const IntelligentAlerts: React.FC<IntelligentAlertsProps> = ({
     },
     {
       id: 'latency',
-      name: 'Search Latency Alerts',
+      name: 'Search Performance Alerts',
     },
   ];
 

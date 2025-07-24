@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   EuiPanel,
   EuiTitle,
@@ -18,8 +18,8 @@ import {
   EuiDescriptionList,
   EuiMarkdownFormat,
 } from '@elastic/eui';
-import { LatencyRecord } from '../utils/dataLoader';
-import { QueryExecutionWaterfall } from './QueryExecutionWaterfall';
+import { LatencyRecord, loadLatencyData } from '../utils/dataLoader';
+import { QueryExecutionWaterfall, QueryExecutionAggregatedWaterfall } from './QueryExecutionWaterfall';
 import { ShardHeatMap } from './ShardHeatMap';
 import { CPUUtilizationChart } from './CPUUtilizationChart';
 import { QueryLatencyChart } from './QueryLatencyChart';
@@ -32,6 +32,20 @@ interface LatencyDetailViewProps {
 }
 
 export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, onBack }) => {
+  const [allRecords, setAllRecords] = useState<LatencyRecord[]>([]);
+
+  useEffect(() => {
+    const loadAllRecords = async () => {
+      try {
+        const records = await loadLatencyData();
+        setAllRecords(records);
+      } catch (error) {
+        console.error('Failed to load all latency records:', error);
+      }
+    };
+    loadAllRecords();
+  }, []);
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical': return 'danger';
@@ -44,11 +58,11 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
 
   const metadataItems = [
     {
-      title: 'Query Hash',
+      title: 'Query Pattern Hash',
       description: record.queryHash,
     },
     {
-      title: 'Average Latency',
+      title: 'Group Avg Latency',
       description: (
         <EuiText>
           <strong>{record.avgLatency.toFixed(1)}ms</strong>
@@ -56,7 +70,7 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
       ),
     },
     {
-      title: 'Max Latency',
+      title: 'Peak Latency Observed',
       description: (
         <EuiText color={record.maxLatency > 10000 ? 'danger' : 'default'}>
           <strong>{record.maxLatency.toFixed(1)}ms</strong>
@@ -64,8 +78,8 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
       ),
     },
     {
-      title: 'Frequency',
-      description: `${record.frequency} occurrences`,
+      title: 'Pattern Frequency',
+      description: `${record.frequency} similar queries`,
     },
     {
       title: 'Last Seen',
@@ -97,12 +111,12 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
             iconType="arrowLeft"
             size="s"
           >
-            Back to Latency List
+Back to Search Performance Alerts
           </EuiButton>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiTitle size="l">
-            <h1>Query Latency Alerts</h1>
+            <h1>Search Performance Alert</h1>
           </EuiTitle>
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
@@ -112,15 +126,33 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
         </EuiFlexItem>
       </EuiFlexGroup>
 
+      <EuiSpacer size="m" />
+
+      {/* Query Group Alert Context */}
+      <EuiPanel paddingSize="m" color="subdued">
+        <EuiText size="s">
+          <p>
+            <strong>About this alert:</strong> This performance alert represents a pattern of similar queries 
+            that have been identified as causing latency issues in your OpenSearch cluster. The analysis 
+            below shows aggregated performance characteristics and execution patterns across multiple 
+            queries matching this group pattern.
+          </p>
+        </EuiText>
+      </EuiPanel>
+
       <EuiSpacer size="l" />
 
-      {/* Query Details and Metadata Section */}
+      {/* Alert Pattern and Sample Query Section */}
       <EuiFlexGroup style={{ alignItems: 'stretch' }} gutterSize="l">
         <EuiFlexItem grow={1}>
           <EuiPanel paddingSize="l" style={{ height: '100%' }}>
             <EuiTitle size="m">
-              <h3>Query Metadata</h3>
+              <h3>Alert Summary</h3>
             </EuiTitle>
+            <EuiSpacer size="s" />
+            <EuiText size="xs" color="subdued">
+              Performance characteristics for this search query group pattern
+            </EuiText>
             <EuiSpacer />
             <EuiDescriptionList listItems={metadataItems} />
           </EuiPanel>
@@ -128,8 +160,12 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
         <EuiFlexItem grow={1}>
           <EuiPanel paddingSize="l" style={{ height: '100%' }}>
             <EuiTitle size="m">
-              <h3>Query</h3>
+              <h3>Query Pattern Sample</h3>
             </EuiTitle>
+            <EuiSpacer size="s" />
+            <EuiText size="xs" color="subdued">
+              Representative query from this group pattern ({record.frequency} similar queries detected)
+            </EuiText>
             <EuiSpacer />
             <EuiCodeBlock 
               language="json" 
@@ -163,7 +199,7 @@ export const LatencyDetailView: React.FC<LatencyDetailViewProps> = ({ record, on
       {/* Query Execution Waterfall and Shard Heat Map Side by Side */}
       <EuiFlexGroup style={{ alignItems: 'stretch' }} gutterSize="l">
         <EuiFlexItem grow={1}>
-          <QueryExecutionWaterfall record={record} />
+          <QueryExecutionAggregatedWaterfall records={allRecords} />
         </EuiFlexItem>
         <EuiFlexItem grow={1}>
           <ShardHeatMap record={record} />

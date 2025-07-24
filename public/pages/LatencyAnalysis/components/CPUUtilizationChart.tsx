@@ -327,7 +327,7 @@ export const CPUUtilizationChart: React.FC<CPUUtilizationChartProps> = ({ record
       
       <EuiSpacer size="xs" />
       <EuiText size="s" color="subdued">
-        CPUUtilization is outside the band (width: 2) for 1 datapoints within 1 minute
+        CPUUtilization is outside the band for X datapoints within X minutes
       </EuiText>
       
       <EuiSpacer size="l" />

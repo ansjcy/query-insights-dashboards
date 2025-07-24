@@ -251,9 +251,10 @@ const LatencySummaryView: React.FC<LatencySummaryViewProps> = ({
             <EuiFlexItem>
               <EuiText>
                 <p>
-                  AI-generated alerts for queries exceeding latency thresholds in OpenSearch. 
-                  View intelligent performance analysis, execution breakdowns, and automated 
-                  optimization suggestions for slow queries.
+                  AI-generated performance alerts for search query groups exceeding latency thresholds. 
+                  Each alert represents a group of similar queries showing performance issues. 
+                  View aggregated execution analysis, query group performance patterns, and automated 
+                  optimization recommendations for problematic query groups.
                 </p>
               </EuiText>
             </EuiFlexItem>
