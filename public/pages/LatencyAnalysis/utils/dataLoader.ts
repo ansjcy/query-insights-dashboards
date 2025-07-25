@@ -29,6 +29,12 @@ export interface ShardPerformance {
   latency: number;
   status: 'success' | 'failed' | 'timeout';
   docCount: number;
+  // Additional latency percentiles for realistic data
+  p50Latency?: number;
+  p90Latency?: number;
+  p95Latency?: number;
+  p99Latency?: number;
+  latencyDistribution?: number[]; // Array of latency measurements
 }
 
 export interface NodePerformance {
@@ -41,6 +47,91 @@ export interface HistoricalDataPoint {
   timestamp: string;
   latency: number;
   count: number;
+}
+
+// Helper function to generate realistic latency distribution for a shard
+function generateShardLatencyDistribution(baseLatency: number, variance: number = 0.3): {
+  latencies: number[];
+  p50: number;
+  p90: number;
+  p95: number;
+  p99: number;
+} {
+  const measurements = [];
+  const sampleSize = 50; // Simulate 50 measurements per shard
+  
+  for (let i = 0; i < sampleSize; i++) {
+    // Generate latencies with realistic distribution (log-normal-ish)
+    const randomFactor = Math.random() * 2 - 1; // -1 to 1
+    const varianceFactor = 1 + (randomFactor * variance);
+    
+    // Add occasional spikes (5% chance of 2-5x spike)
+    const spikeChance = Math.random();
+    const spikeFactor = spikeChance < 0.05 ? (2 + Math.random() * 3) : 1;
+    
+    const latency = Math.max(10, baseLatency * varianceFactor * spikeFactor);
+    measurements.push(latency);
+  }
+  
+  const sorted = measurements.sort((a, b) => a - b);
+  
+  return {
+    latencies: measurements,
+    p50: percentileCalc(sorted, 0.5),
+    p90: percentileCalc(sorted, 0.9),
+    p95: percentileCalc(sorted, 0.95),
+    p99: percentileCalc(sorted, 0.99)
+  };
+}
+
+// Helper function for percentile calculation
+function percentileCalc(sortedArray: number[], percentile: number): number {
+  if (sortedArray.length === 0) return 0;
+  const index = percentile * (sortedArray.length - 1);
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  const weight = index % 1;
+  
+  if (upper >= sortedArray.length) return sortedArray[sortedArray.length - 1];
+  return sortedArray[lower] * (1 - weight) + sortedArray[upper] * weight;
+}
+
+// Enhanced function to generate realistic node performance that respects shard constraints
+function generateNodePerformanceFromShards(shards: any[]): any[] {
+  const nodeGroups = new Map<string, any[]>();
+  
+  // Group shards by node
+  shards.forEach(shard => {
+    if (!nodeGroups.has(shard.nodeId)) {
+      nodeGroups.set(shard.nodeId, []);
+    }
+    nodeGroups.get(shard.nodeId)!.push(shard);
+  });
+  
+  // Calculate node performance ensuring it respects shard constraints
+  return Array.from(nodeGroups.entries()).map(([nodeId, nodeShards]) => {
+    const allLatencies = nodeShards.flatMap(shard => shard.latencyDistribution || [shard.latency]);
+    const sortedLatencies = allLatencies.sort((a, b) => a - b);
+    const avgLatency = sortedLatencies.reduce((sum, l) => sum + l, 0) / sortedLatencies.length;
+    const maxShardP99 = Math.max(...nodeShards.map(s => s.p99Latency || s.latency));
+    
+    // Node performance cannot be better than its worst shard
+    const nodeAvgLatency = Math.max(avgLatency, maxShardP99 * 0.8); // Node avg should be close to but can be slightly better than max shard P99
+    
+    let status: 'healthy' | 'degraded' | 'failed' = 'healthy';
+    if (nodeAvgLatency > 8000) status = 'failed';
+    else if (nodeAvgLatency > 4000) status = 'degraded';
+    
+    return {
+      nodeId,
+      avgLatency: nodeAvgLatency,
+      status,
+      p50Latency: percentileCalc(sortedLatencies, 0.5),
+      p90Latency: percentileCalc(sortedLatencies, 0.9),
+      p95Latency: percentileCalc(sortedLatencies, 0.95),
+      p99Latency: percentileCalc(sortedLatencies, 0.99)
+    };
+  });
 }
 
 // Mock data for demonstration - in production, this would call actual APIs
@@ -84,18 +175,32 @@ const mockLatencyData: LatencyRecord[] = [
     severity: 'critical',
     timestamp: '2024-10-26T14:30:45.891Z',
     affectedShards: ['products-0', 'products-1', 'products-2', 'products-3', 'products-4'],
-    shardPerformance: [
-      { shardId: 'products-0', nodeId: 'node-1', latency: 7200.1, status: 'success', docCount: 125000 },
-      { shardId: 'products-1', nodeId: 'node-2', latency: 9800.5, status: 'success', docCount: 118000 },
-      { shardId: 'products-2', nodeId: 'node-3', latency: 8100.2, status: 'success', docCount: 132000 },
-      { shardId: 'products-3', nodeId: 'node-1', latency: 15200.8, status: 'timeout', docCount: 95000 },
-      { shardId: 'products-4', nodeId: 'node-2', latency: 6500.3, status: 'success', docCount: 142000 },
-    ],
-    nodePerformance: [
-      { nodeId: 'node-1', avgLatency: 11200.45, status: 'degraded' },
-      { nodeId: 'node-2', avgLatency: 8150.4, status: 'healthy' },
-      { nodeId: 'node-3', avgLatency: 8100.2, status: 'healthy' },
-    ],
+    shardPerformance: (() => {
+      const baseShards = [
+        { shardId: 'products-0', nodeId: 'node-1', baseLatency: 7200.1, status: 'success', docCount: 125000 },
+        { shardId: 'products-1', nodeId: 'node-2', baseLatency: 9800.5, status: 'success', docCount: 118000 },
+        { shardId: 'products-2', nodeId: 'node-3', baseLatency: 8100.2, status: 'success', docCount: 132000 },
+        { shardId: 'products-3', nodeId: 'node-1', baseLatency: 15200.8, status: 'timeout', docCount: 95000 },
+        { shardId: 'products-4', nodeId: 'node-2', baseLatency: 6500.3, status: 'success', docCount: 142000 },
+      ];
+      
+      return baseShards.map(shard => {
+        const distribution = generateShardLatencyDistribution(shard.baseLatency, 0.4);
+        return {
+          shardId: shard.shardId,
+          nodeId: shard.nodeId,
+          latency: shard.baseLatency, // Keep for backward compatibility
+          status: shard.status,
+          docCount: shard.docCount,
+          p50Latency: distribution.p50,
+          p90Latency: distribution.p90,
+          p95Latency: distribution.p95,
+          p99Latency: distribution.p99,
+          latencyDistribution: distribution.latencies
+        };
+      });
+    })(),
+    nodePerformance: [], // Will be generated dynamically
     historicalData: generateHistoricalData(8500, 24),
     rootCause: `## Root Cause Analysis - Critical Latency
 
@@ -205,16 +310,30 @@ This wildcard query with leading and trailing wildcards is causing extreme perfo
     severity: 'high',
     timestamp: '2024-10-26T13:15:22.456Z',
     affectedShards: ['logs-0', 'logs-1', 'logs-2'],
-    shardPerformance: [
-      { shardId: 'logs-0', nodeId: 'node-1', latency: 2800.1, status: 'success', docCount: 89000 },
-      { shardId: 'logs-1', nodeId: 'node-2', latency: 3500.5, status: 'success', docCount: 94000 },
-      { shardId: 'logs-2', nodeId: 'node-3', latency: 3300.2, status: 'success', docCount: 91000 },
-    ],
-    nodePerformance: [
-      { nodeId: 'node-1', avgLatency: 2800.1, status: 'healthy' },
-      { nodeId: 'node-2', avgLatency: 3500.5, status: 'healthy' },
-      { nodeId: 'node-3', avgLatency: 3300.2, status: 'healthy' },
-    ],
+    shardPerformance: (() => {
+      const baseShards = [
+        { shardId: 'logs-0', nodeId: 'node-1', baseLatency: 2800.1, status: 'success', docCount: 89000 },
+        { shardId: 'logs-1', nodeId: 'node-2', baseLatency: 3500.5, status: 'success', docCount: 94000 },
+        { shardId: 'logs-2', nodeId: 'node-3', baseLatency: 3300.2, status: 'success', docCount: 91000 },
+      ];
+      
+      return baseShards.map(shard => {
+        const distribution = generateShardLatencyDistribution(shard.baseLatency, 0.25);
+        return {
+          shardId: shard.shardId,
+          nodeId: shard.nodeId,
+          latency: shard.baseLatency,
+          status: shard.status,
+          docCount: shard.docCount,
+          p50Latency: distribution.p50,
+          p90Latency: distribution.p90,
+          p95Latency: distribution.p95,
+          p99Latency: distribution.p99,
+          latencyDistribution: distribution.latencies
+        };
+      });
+    })(),
+    nodePerformance: [], // Will be generated dynamically
     historicalData: generateHistoricalData(3200, 24),
     rootCause: `## Root Cause Analysis - High Latency
 
@@ -283,14 +402,29 @@ Query with large aggregation and broad date range causing moderate performance i
     severity: 'low',
     timestamp: '2024-10-26T12:45:33.789Z',
     affectedShards: ['users-0', 'users-1'],
-    shardPerformance: [
-      { shardId: 'users-0', nodeId: 'node-1', latency: 420.1, status: 'success', docCount: 45000 },
-      { shardId: 'users-1', nodeId: 'node-2', latency: 480.3, status: 'success', docCount: 48000 },
-    ],
-    nodePerformance: [
-      { nodeId: 'node-1', avgLatency: 420.1, status: 'healthy' },
-      { nodeId: 'node-2', avgLatency: 480.3, status: 'healthy' },
-    ],
+    shardPerformance: (() => {
+      const baseShards = [
+        { shardId: 'users-0', nodeId: 'node-1', baseLatency: 420.1, status: 'success', docCount: 45000 },
+        { shardId: 'users-1', nodeId: 'node-2', baseLatency: 480.3, status: 'success', docCount: 48000 },
+      ];
+      
+      return baseShards.map(shard => {
+        const distribution = generateShardLatencyDistribution(shard.baseLatency, 0.15);
+        return {
+          shardId: shard.shardId,
+          nodeId: shard.nodeId,
+          latency: shard.baseLatency,
+          status: shard.status,
+          docCount: shard.docCount,
+          p50Latency: distribution.p50,
+          p90Latency: distribution.p90,
+          p95Latency: distribution.p95,
+          p99Latency: distribution.p99,
+          latencyDistribution: distribution.latencies
+        };
+      });
+    })(),
+    nodePerformance: [], // Will be generated dynamically
     historicalData: generateHistoricalData(450, 24),
     rootCause: `## Root Cause Analysis - Low Latency
 
@@ -393,17 +527,31 @@ This query demonstrates good performance patterns and requires minimal optimizat
     severity: 'medium',
     timestamp: '2024-10-26T11:20:15.234Z',
     affectedShards: ['accounts-0', 'accounts-1', 'accounts-2', 'accounts-3'],
-    shardPerformance: [
-      { shardId: 'accounts-0', nodeId: 'node-1', latency: 1800.1, status: 'success', docCount: 65000 },
-      { shardId: 'accounts-1', nodeId: 'node-2', latency: 2200.5, status: 'success', docCount: 71000 },
-      { shardId: 'accounts-2', nodeId: 'node-3', latency: 2100.2, status: 'success', docCount: 68000 },
-      { shardId: 'accounts-3', nodeId: 'node-1', latency: 2300.8, status: 'success', docCount: 73000 },
-    ],
-    nodePerformance: [
-      { nodeId: 'node-1', avgLatency: 2050.45, status: 'healthy' },
-      { nodeId: 'node-2', avgLatency: 2200.5, status: 'healthy' },
-      { nodeId: 'node-3', avgLatency: 2100.2, status: 'healthy' },
-    ],
+    shardPerformance: (() => {
+      const baseShards = [
+        { shardId: 'accounts-0', nodeId: 'node-1', baseLatency: 1800.1, status: 'success', docCount: 65000 },
+        { shardId: 'accounts-1', nodeId: 'node-2', baseLatency: 2200.5, status: 'success', docCount: 71000 },
+        { shardId: 'accounts-2', nodeId: 'node-3', baseLatency: 2100.2, status: 'success', docCount: 68000 },
+        { shardId: 'accounts-3', nodeId: 'node-1', baseLatency: 2300.8, status: 'success', docCount: 73000 },
+      ];
+      
+      return baseShards.map(shard => {
+        const distribution = generateShardLatencyDistribution(shard.baseLatency, 0.2);
+        return {
+          shardId: shard.shardId,
+          nodeId: shard.nodeId,
+          latency: shard.baseLatency,
+          status: shard.status,
+          docCount: shard.docCount,
+          p50Latency: distribution.p50,
+          p90Latency: distribution.p90,
+          p95Latency: distribution.p95,
+          p99Latency: distribution.p99,
+          latencyDistribution: distribution.latencies
+        };
+      });
+    })(),
+    nodePerformance: [], // Will be generated dynamically
     historicalData: generateHistoricalData(2100, 24),
     rootCause: `## Root Cause Analysis - Medium Latency
 
@@ -441,6 +589,11 @@ Nested query with aggregations showing moderate performance impact due to comple
 5. **Use composite aggregations** for pagination-friendly results`
   }
 ];
+
+// Generate realistic node performance data after creating the records
+mockLatencyData.forEach(record => {
+  record.nodePerformance = generateNodePerformanceFromShards(record.shardPerformance);
+});
 
 // Helper function to generate realistic historical data
 function generateHistoricalData(baseLatency: number, hours: number): HistoricalDataPoint[] {

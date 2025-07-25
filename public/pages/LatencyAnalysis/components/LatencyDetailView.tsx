@@ -20,7 +20,7 @@ import {
 } from '@elastic/eui';
 import { LatencyRecord, loadLatencyData } from '../utils/dataLoader';
 import { QueryExecutionWaterfall, QueryExecutionAggregatedWaterfall } from './QueryExecutionWaterfall';
-import { ShardHeatMap } from './ShardHeatMap';
+import { ShardHeatMap, ShardHeatMapAggregated } from './ShardHeatMap';
 import { CPUUtilizationChart } from './CPUUtilizationChart';
 import { QueryLatencyChart } from './QueryLatencyChart';
 import { JVMUsageChart } from './JVMUsageChart';
@@ -202,7 +202,7 @@ Back to Search Performance Alerts
           <QueryExecutionAggregatedWaterfall records={allRecords} />
         </EuiFlexItem>
         <EuiFlexItem grow={1}>
-          <ShardHeatMap record={record} />
+          <ShardHeatMapAggregated records={allRecords} />
         </EuiFlexItem>
       </EuiFlexGroup>
 
