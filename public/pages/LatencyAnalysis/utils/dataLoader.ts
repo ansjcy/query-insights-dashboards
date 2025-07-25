@@ -143,7 +143,8 @@ const mockLatencyData: LatencyRecord[] = [
   "query": {
     "bool": {
       "must": [
-        {"wildcard": {"product_name": "*laptop*computer*"}}
+        {"wildcard": {"product_name": "*book"}},
+        {"wildcard": {"description": "*gaming*laptop*"}}
       ],
       "filter": [
         {"range": {"price": {"gte": 500, "lte": 2000}}},
@@ -157,7 +158,10 @@ const mockLatencyData: LatencyRecord[] = [
     queryStructure: {
       query: {
         bool: {
-          must: [{ wildcard: { product_name: "*laptop*computer*" } }],
+          must: [
+            { wildcard: { product_name: "*book" } },
+            { wildcard: { description: "*gaming*laptop*" } }
+          ],
           filter: [
             { range: { price: { gte: 500, lte: 2000 } } },
             { term: { category: "electronics" } }
@@ -205,35 +209,42 @@ const mockLatencyData: LatencyRecord[] = [
     rootCause: `## Root Cause Analysis - Critical Latency
 
 ### Issue Overview
-This wildcard query with leading and trailing wildcards is causing extreme performance degradation across the cluster.
+This query uses extremely inefficient wildcard patterns causing severe performance degradation across the cluster.
 
 ### Primary Contributing Factors
 
-**1. Inefficient Wildcard Pattern**
-- Pattern \`*laptop*computer*\` requires full-text scanning
-- Cannot utilize inverted index efficiently
-- Forces Lucene to examine every term in the field
+**1. Leading Wildcard Pattern (\`*book\`)**
+- Leading wildcards cannot utilize the inverted index efficiently
+- OpenSearch must scan every term in the field to find matches ending with "book"
+- Forces full-text examination instead of leveraging index optimization
+- Reference: https://opensearch.org/docs/latest/query-dsl/term/wildcard/
 
-**2. Large Result Set Processing**
-- Requesting 10,000 documents with sorting
+**2. Multiple Wildcards Pattern (\`*gaming*laptop*\`)**
+- Multiple wildcards cause excessive term expansion
+- Pattern \`*gaming*laptop*\` requires complex matching across all terms
+- Each wildcard multiplies the search complexity exponentially
+- Reference: https://opensearch.org/docs/latest/query-dsl/term/wildcard/
+
+**3. Large Result Set Processing**
+- Requesting 10,000 documents compounds wildcard inefficiency
 - Price-based sorting requires loading all matching documents
 - Memory-intensive operation across multiple shards
 
-**3. Shard Imbalance**
-- Shard \`products-3\` showing timeout issues (15.2s)
-- Uneven document distribution affecting performance
-- Node-1 showing degraded performance patterns
+**4. No Query Controls**
+- Missing timeout controls allow runaway queries
+- No result size limitations for wildcard operations
 
 ### Performance Impact
-- **8.5x slower** than optimal query patterns
-- **Resource exhaustion** on affected nodes
+- **10x+ slower** than optimal query patterns due to wildcard inefficiency
+- **Resource exhaustion** from term expansion
+- **Index scanning** instead of efficient index lookups
 - **User experience degradation** with 8+ second response times
 
 ### Immediate Actions Required
-1. Replace wildcard query with match_phrase_prefix
-2. Implement result pagination with search_after  
-3. Add query timeout controls
-4. Monitor shard rebalancing on node-1`,
+1. Replace leading wildcard \`*book\` with match query for "book"
+2. Replace multiple wildcards \`*gaming*laptop*\` with match_phrase "gaming laptop"
+3. Implement query timeout controls
+4. Reduce result set size and add pagination`,
     optimizedQuery: `{
   "timeout": "30s",
   "size": 100,
@@ -241,10 +252,13 @@ This wildcard query with leading and trailing wildcards is causing extreme perfo
     "bool": {
       "must": [
         {
-          "multi_match": {
-            "query": "laptop computer",
-            "fields": ["product_name^2", "description"],
-            "type": "phrase_prefix"
+          "match": {
+            "product_name": "book"
+          }
+        },
+        {
+          "match_phrase": {
+            "description": "gaming laptop"
           }
         }
       ],
@@ -254,12 +268,8 @@ This wildcard query with leading and trailing wildcards is causing extreme perfo
       ]
     }
   },
-  "_source": ["id", "product_name", "price", "category"],
-  "sort": [
-    {"_score": {"order": "desc"}},
-    {"price": {"order": "desc"}}
-  ],
-  "search_after": [0.85, 1500],
+  "_source": ["id", "product_name", "price", "category", "description"],
+  "sort": [{"price": {"order": "desc"}}],
   "track_total_hits": false
 }`
   },
@@ -270,36 +280,30 @@ This wildcard query with leading and trailing wildcards is causing extreme perfo
   "query": {
     "bool": {
       "must": [
-        {"range": {"timestamp": {"gte": "2024-01-01", "lte": "2024-12-31"}}}
+        {"match": {"category": "electronics"}}
       ],
-      "should": [
-        {"match": {"title": "search optimization"}},
-        {"match": {"content": "performance tuning"}}
+      "filter": [
+        {"range": {"price": {"gte": 100, "lte": 1000}}}
       ]
     }
   },
-  "aggs": {
-    "categories": {
-      "terms": {"field": "category.keyword", "size": 1000}
-    }
-  },
+  "sort": [
+    {"popularity_score": {"order": "desc"}},
+    {"relevance_score": {"order": "desc"}}
+  ],
   "size": 500
 }`,
     queryStructure: {
       query: {
         bool: {
-          must: [{ range: { timestamp: { gte: "2024-01-01", lte: "2024-12-31" } } }],
-          should: [
-            { match: { title: "search optimization" } },
-            { match: { content: "performance tuning" } }
-          ]
+          must: [{ match: { category: "electronics" } }],
+          filter: [{ range: { price: { gte: 100, lte: 1000 } } }]
         }
       },
-      aggs: {
-        categories: {
-          terms: { field: "category.keyword", size: 1000 }
-        }
-      },
+      sort: [
+        { popularity_score: { order: "desc" } },
+        { relevance_score: { order: "desc" } }
+      ],
       size: 500
     },
     avgLatency: 3200.7,
@@ -309,12 +313,12 @@ This wildcard query with leading and trailing wildcards is causing extreme perfo
     frequency: 28,
     severity: 'high',
     timestamp: '2024-10-26T13:15:22.456Z',
-    affectedShards: ['logs-0', 'logs-1', 'logs-2'],
+    affectedShards: ['products-0', 'products-1', 'products-2'],
     shardPerformance: (() => {
       const baseShards = [
-        { shardId: 'logs-0', nodeId: 'node-1', baseLatency: 2800.1, status: 'success', docCount: 89000 },
-        { shardId: 'logs-1', nodeId: 'node-2', baseLatency: 3500.5, status: 'success', docCount: 94000 },
-        { shardId: 'logs-2', nodeId: 'node-3', baseLatency: 3300.2, status: 'success', docCount: 91000 },
+        { shardId: 'products-0', nodeId: 'node-1', baseLatency: 2800.1, status: 'success', docCount: 89000 },
+        { shardId: 'products-1', nodeId: 'node-2', baseLatency: 3500.5, status: 'success', docCount: 94000 },
+        { shardId: 'products-2', nodeId: 'node-3', baseLatency: 3300.2, status: 'success', docCount: 91000 },
       ];
       
       return baseShards.map(shard => {
@@ -338,36 +342,93 @@ This wildcard query with leading and trailing wildcards is causing extreme perfo
     rootCause: `## Root Cause Analysis - High Latency
 
 ### Issue Overview
-Query with large aggregation and broad date range causing moderate performance issues.
+Query performance degraded due to sorting on unindexed fields, causing excessive memory usage and computational overhead.
 
 ### Contributing Factors
 
-**1. Large Aggregation Size**
-- Terms aggregation requesting 1,000 buckets
-- Memory-intensive operation requiring significant heap usage
-- Global ordinals loading for keyword field
+**1. Sorting on Unindexed Fields**
+- \`popularity_score\` and \`relevance_score\` fields are not properly indexed for sorting
+- OpenSearch must load all field values into memory for sorting operations
+- No index-time sorting configuration to optimize frequent sort operations
+- Reference: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
 
-**2. Broad Time Range**
-- Full year date range increases document scan volume
-- Unable to leverage time-based index optimization
-- Forces query across all time partitions
+**2. Multiple Sort Criteria**
+- Dual sorting on \`popularity_score\` and \`relevance_score\` compounds memory pressure
+- Each sort field requires separate field data loading
+- Secondary sort operations add computational overhead
 
-**3. Multiple Text Matching**
-- \`should\` clauses with text matching increase complexity
-- Scoring calculations across large document sets
-- Multiple field analysis and term lookup operations
+**3. Large Result Set Processing**
+- Requesting 500 documents requires sorting entire match set
+- Memory-intensive operation when sort fields are not optimized
+- Cannot leverage index sorting for performance optimization
 
-### Performance Characteristics
-- **Moderate latency impact** (3.2s average)
-- **Consistent cross-shard performance**
-- **Memory pressure** from large aggregations
-- **Stable query execution** without timeouts
+**4. Frequent Sort Pattern**
+- High query frequency (28 executions) on same sort fields
+- Repeated memory allocation for field data loading
+- Missing index-level optimization for common sort patterns
 
-### Optimization Opportunities
-1. Reduce aggregation bucket size or use composite aggregation
-2. Implement time-based filtering for recent data focus
-3. Consider caching strategy for popular aggregation results
-4. Use significant_terms for more targeted category analysis`
+### Performance Impact
+- **3.2s average latency** from in-memory sorting operations
+- **Memory pressure** from field data loading
+- **Computational overhead** from multi-field sorting
+- **Repeated field loading** due to lack of index sorting
+
+### Immediate Actions Required
+1. Configure index sorting for \`popularity_score\` and \`relevance_score\` fields
+2. Optimize field mappings to support efficient sorting
+3. Consider pre-sorting data at index time for frequently sorted fields
+4. Monitor field data circuit breaker settings`,
+    optimizedQuery: `// 1. Configure Index Sorting (Primary Recommendation)
+PUT products_sorted
+{
+  "settings": {
+    "index": {
+      "sort.field": ["popularity_score", "relevance_score"],
+      "sort.order": ["desc", "desc"]
+    }
+  },
+  "mappings": {
+    "properties": {
+      "popularity_score": {
+        "type": "integer",
+        "doc_values": true
+      },
+      "relevance_score": {
+        "type": "float",
+        "doc_values": true
+      },
+      "category": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "price": {
+        "type": "integer"
+      }
+    }
+  }
+}
+
+// 2. Optimized Query (leverages index sorting)
+{
+  "timeout": "30s",
+  "size": 100,
+  "query": {
+    "bool": {
+      "must": [
+        {"match": {"category": "electronics"}}
+      ],
+      "filter": [
+        {"range": {"price": {"gte": 100, "lte": 1000}}}
+      ]
+    }
+  },
+  "_source": ["id", "category", "price", "popularity_score", "relevance_score"],
+  "track_total_hits": false
+}`
   },
   {
     id: 'latency-003',
@@ -586,7 +647,46 @@ Nested query with aggregations showing moderate performance impact due to comple
 2. **Implement result caching** for common aggregation patterns
 3. **Add filters early** to reduce nested document processing volume
 4. **Monitor nested mapping strategies** for optimal field organization
-5. **Use composite aggregations** for pagination-friendly results`
+5. **Use composite aggregations** for pagination-friendly results`,
+    optimizedQuery: `{
+  "timeout": "30s",
+  "size": 50,
+  "query": {
+    "nested": {
+      "path": "transactions",
+      "query": {
+        "bool": {
+          "filter": [
+            {"range": {"transactions.amount": {"gte": 1000}}},
+            {"term": {"transactions.status": "completed"}}
+          ]
+        }
+      }
+    }
+  },
+  "aggs": {
+    "transaction_stats": {
+      "nested": {"path": "transactions"},
+      "aggs": {
+        "filtered_stats": {
+          "filter": {
+            "bool": {
+              "filter": [
+                {"range": {"transactions.amount": {"gte": 1000}}},
+                {"term": {"transactions.status": "completed"}}
+              ]
+            }
+          },
+          "aggs": {
+            "avg_amount": {"avg": {"field": "transactions.amount"}}
+          }
+        }
+      }
+    }
+  },
+  "_source": ["id", "account_id", "created_at"],
+  "track_total_hits": false
+}`
   }
 ];
 
