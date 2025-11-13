@@ -6,6 +6,41 @@
 import { schema } from '@osd/config-schema';
 import { IRouter } from '../../../../src/core/server';
 import { EXPORTER_TYPE } from '../../common/constants';
+import * as semver from 'semver';
+
+/**
+ * Determines whether to use the new scoped /_insights/settings API
+ * or fallback to _cluster/settings based on:
+ * 1. Multi-datasource enablement
+ * 2. Data source version
+ *
+ * @param dataSourceEnabled - Whether multi-datasource is enabled
+ * @param dataSourceId - The data source ID (empty for local cluster)
+ * @param dataSourceVersion - The OpenSearch version (e.g., "3.4.0")
+ * @returns true if should use /_insights/settings, false for _cluster/settings
+ */
+function shouldUseScopedSettingsAPI(
+  dataSourceEnabled: boolean,
+  dataSourceId: string | undefined,
+  dataSourceVersion: string | undefined
+): boolean {
+  // Local cluster (no multi-datasource) → always use _cluster/settings
+  if (!dataSourceEnabled || !dataSourceId) {
+    return false;
+  }
+
+  // Multi-datasource enabled → check version
+  if (dataSourceVersion) {
+    const version = semver.coerce(dataSourceVersion);
+    if (version && semver.gte(version, '3.4.0')) {
+      // Version >= 3.4.0 → use new scoped API
+      return true;
+    }
+  }
+
+  // Version < 3.4.0 or unknown → fallback to _cluster/settings
+  return false;
+}
 
 export function defineRoutes(router: IRouter, dataSourceEnabled: boolean) {
   router.get(
@@ -239,12 +274,21 @@ export function defineRoutes(router: IRouter, dataSourceEnabled: boolean) {
       validate: {
         query: schema.object({
           dataSourceId: schema.maybe(schema.string()),
+          dataSourceVersion: schema.maybe(schema.string()),
         }),
       },
     },
     async (context, request, response) => {
       try {
-        if (!dataSourceEnabled || !request.query?.dataSourceId) {
+        const { dataSourceId, dataSourceVersion } = request.query;
+        const useScopedAPI = shouldUseScopedSettingsAPI(
+          dataSourceEnabled,
+          dataSourceId,
+          dataSourceVersion
+        );
+
+        if (!dataSourceEnabled || !dataSourceId) {
+          // Local cluster → use _cluster/settings
           const client = context.queryInsights_plugin.queryInsightsClient.asScoped(request)
             .callAsCurrentUser;
           const res = await client('queryInsights.getSettings');
@@ -256,20 +300,32 @@ export function defineRoutes(router: IRouter, dataSourceEnabled: boolean) {
             },
           });
         } else {
-          const client = context.dataSource.opensearch.legacy.getClient(
-            request.query?.dataSourceId
-          );
-          const res = await client.callAPI('queryInsights.getSettings', {});
-          return response.custom({
-            statusCode: 200,
-            body: {
-              ok: true,
-              response: res,
-            },
-          });
+          const client = context.dataSource.opensearch.legacy.getClient(dataSourceId);
+
+          if (useScopedAPI) {
+            // Version >= 3.4.0 → use /_insights/settings
+            const res = await client.callAPI('queryInsights.getInsightsSettings', {});
+            return response.custom({
+              statusCode: 200,
+              body: {
+                ok: true,
+                response: res,
+              },
+            });
+          } else {
+            // Version < 3.4.0 → fallback to _cluster/settings
+            const res = await client.callAPI('queryInsights.getSettings', {});
+            return response.custom({
+              statusCode: 200,
+              body: {
+                ok: true,
+                response: res,
+              },
+            });
+          }
         }
       } catch (error) {
-        console.error('Unable to get top queries: ', error);
+        console.error('Unable to get settings: ', error);
         return response.ok({
           body: {
             ok: false,
@@ -353,6 +409,7 @@ export function defineRoutes(router: IRouter, dataSourceEnabled: boolean) {
           exporterType: schema.maybe(schema.string({ defaultValue: '' })),
           group_by: schema.maybe(schema.string({ defaultValue: '' })),
           dataSourceId: schema.maybe(schema.string()),
+          dataSourceVersion: schema.maybe(schema.string()),
           delete_after_days: schema.maybe(schema.string({ defaultValue: '' })),
         }),
       },
@@ -360,29 +417,79 @@ export function defineRoutes(router: IRouter, dataSourceEnabled: boolean) {
     async (context, request, response) => {
       try {
         const query = request.query;
-        const params = {
-          body: {
-            persistent: {
-              [`search.insights.top_queries.${query.metric}.enabled`]: query.enabled,
-              [`search.insights.top_queries.${query.metric}.top_n_size`]: query.top_n_size,
-              [`search.insights.top_queries.${query.metric}.window_size`]: query.window_size,
+        const { dataSourceId, dataSourceVersion } = request.query;
+        const useScopedAPI = shouldUseScopedSettingsAPI(
+          dataSourceEnabled,
+          dataSourceId,
+          dataSourceVersion
+        );
+
+        // Build parameters based on API type
+        let params;
+        if (useScopedAPI) {
+          // New scoped API format (nested structure)
+          params = {
+            body: {
+              persistent: {
+                [query.metric]: {
+                  enabled: query.enabled,
+                  top_n_size: query.top_n_size,
+                  window_size: query.window_size,
+                },
+              },
             },
-          },
-        };
-        if (query.group_by !== '') {
-          params.body.persistent['search.insights.top_queries.grouping.group_by'] = query.group_by;
+          };
+
+          if (query.group_by !== '') {
+            params.body.persistent.grouping = {
+              group_by: query.group_by,
+            };
+          }
+
+          if (query.exporterType !== '' || query.delete_after_days !== '') {
+            params.body.persistent.exporter = {};
+            if (query.exporterType !== '') {
+              params.body.persistent.exporter.type =
+                query.exporterType === EXPORTER_TYPE.localIndex
+                  ? query.exporterType
+                  : EXPORTER_TYPE.none;
+            }
+            if (query.delete_after_days !== '') {
+              params.body.persistent.exporter.delete_after_days = query.delete_after_days;
+            }
+          }
+        } else {
+          // Old _cluster/settings format (flat structure)
+          params = {
+            body: {
+              persistent: {
+                [`search.insights.top_queries.${query.metric}.enabled`]: query.enabled,
+                [`search.insights.top_queries.${query.metric}.top_n_size`]: query.top_n_size,
+                [`search.insights.top_queries.${query.metric}.window_size`]: query.window_size,
+              },
+            },
+          };
+
+          if (query.group_by !== '') {
+            params.body.persistent['search.insights.top_queries.grouping.group_by'] =
+              query.group_by;
+          }
+
+          if (query.delete_after_days !== '') {
+            params.body.persistent['search.insights.top_queries.exporter.delete_after_days'] =
+              query.delete_after_days;
+          }
+
+          if (query.exporterType !== '') {
+            params.body.persistent['search.insights.top_queries.exporter.type'] =
+              query.exporterType === EXPORTER_TYPE.localIndex
+                ? query.exporterType
+                : EXPORTER_TYPE.none;
+          }
         }
-        if (query.delete_after_days !== '') {
-          params.body.persistent['search.insights.top_queries.exporter.delete_after_days'] =
-            query.delete_after_days;
-        }
-        if (query.exporterType !== '') {
-          params.body.persistent['search.insights.top_queries.exporter.type'] =
-            query.exporterType === EXPORTER_TYPE.localIndex
-              ? query.exporterType
-              : EXPORTER_TYPE.none;
-        }
-        if (!dataSourceEnabled || !request.query?.dataSourceId) {
+
+        if (!dataSourceEnabled || !dataSourceId) {
+          // Local cluster
           const client = context.queryInsights_plugin.queryInsightsClient.asScoped(request)
             .callAsCurrentUser;
           const res = await client('queryInsights.setSettings', params);
@@ -394,17 +501,29 @@ export function defineRoutes(router: IRouter, dataSourceEnabled: boolean) {
             },
           });
         } else {
-          const client = context.dataSource.opensearch.legacy.getClient(
-            request.query?.dataSourceId
-          );
-          const res = await client.callAPI('queryInsights.setSettings', params);
-          return response.custom({
-            statusCode: 200,
-            body: {
-              ok: true,
-              response: res,
-            },
-          });
+          const client = context.dataSource.opensearch.legacy.getClient(dataSourceId);
+
+          if (useScopedAPI) {
+            // Version >= 3.4.0 → use /_insights/settings
+            const res = await client.callAPI('queryInsights.setInsightsSettings', params);
+            return response.custom({
+              statusCode: 200,
+              body: {
+                ok: true,
+                response: res,
+              },
+            });
+          } else {
+            // Version < 3.4.0 → fallback to _cluster/settings
+            const res = await client.callAPI('queryInsights.setSettings', params);
+            return response.custom({
+              statusCode: 200,
+              body: {
+                ok: true,
+                response: res,
+              },
+            });
+          }
         }
       } catch (error) {
         console.error('Unable to set settings: ', error);

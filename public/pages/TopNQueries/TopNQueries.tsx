@@ -89,6 +89,11 @@ const TopNQueries = ({
   const [recentlyUsedRanges, setRecentlyUsedRanges] = useState([
     { start: currStart, end: currEnd },
   ]);
+  // Data source version for API selection (v3.4.0+ uses /_insights/settings, older uses _cluster/settings)
+  // TODO: Implement dynamic version detection from data source management plugin
+  // For now, setting to undefined causes backend to fallback to _cluster/settings for compatibility
+  const [dataSourceVersion, setDataSourceVersion] = useState<string | undefined>(undefined);
+
   const [latencySettings, setLatencySettings] = useState<MetricSettings>({
     isEnabled: DEFAULT_METRIC_ENABLED,
     currTopN: DEFAULT_TOP_N_SIZE,
@@ -243,7 +248,10 @@ const TopNQueries = ({
         try {
           // const resp = await core.http.get('/api/settings', {query: {dataSourceId: '738ffbd0-d8de-11ef-9d96-eff1abd421b8'}});
           const resp = await core.http.get('/api/settings', {
-            query: { dataSourceId: getDataSourceFromUrl().id },
+            query: {
+              dataSourceId: getDataSourceFromUrl().id,
+              dataSourceVersion,
+            },
           });
           const persistentSettings = resp?.response?.persistent?.search?.insights?.top_queries;
           const transientSettings = resp?.response?.transient?.search?.insights?.top_queries;
@@ -329,6 +337,7 @@ const TopNQueries = ({
             group_by: newGroupBy,
             delete_after_days: newDeleteAfterDays,
             dataSourceId: getDataSourceFromUrl().id,
+            dataSourceVersion,
           };
           if (newTimeUnit === 'MINUTES') {
             newTimeUnit = 'm';

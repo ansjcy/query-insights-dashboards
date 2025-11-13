@@ -168,6 +168,22 @@ export const QueryInsightsPlugin = function (Client, config, components) {
     needBody: true,
   });
 
+  // NEW SCOPED APIs (for Query Insights 3.4+)
+  queryInsights.getInsightsSettings = ca({
+    url: {
+      fmt: `/_insights/settings`,
+    },
+    method: 'GET',
+  });
+
+  queryInsights.setInsightsSettings = ca({
+    url: {
+      fmt: `/_insights/settings`,
+    },
+    method: 'PUT',
+    needBody: true,
+  });
+
   queryInsights.getLiveQueries = ca({
     url: {
       fmt: `/_insights/live_queries`,
