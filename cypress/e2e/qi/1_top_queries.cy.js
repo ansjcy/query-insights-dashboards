@@ -388,6 +388,9 @@ describe('Query Insights — Dynamic Columns with Intercepted Top Queries (MIXED
       'Indices',
       'Search Type',
       'Coordinator Node ID',
+      'Application ID',
+      'Username',
+      'User Roles',
       'WLM Group',
       'Total Shards',
     ];
@@ -411,6 +414,9 @@ describe('Query Insights — Dynamic Columns with Intercepted Top Queries (MIXED
       'Indices',
       'Search Type',
       'Coordinator Node ID',
+      'Application ID',
+      'Username',
+      'User Roles',
       'WLM Group',
       'Total Shards',
     ];
@@ -461,6 +467,9 @@ describe('Query Insights — Dynamic Columns with Intercepted Top Queries (MIXED
       'Indices',
       'Search Type',
       'Coordinator Node ID',
+      'Application ID',
+      'Username',
+      'User Roles',
       'WLM Group',
       'Total Shards',
     ];
@@ -496,6 +505,9 @@ describe('Query Insights — Dynamic Columns (QUERY ONLY fixture)', () => {
       'Indices',
       'Search Type',
       'Coordinator Node ID',
+      'Application ID',
+      'Username',
+      'User Roles',
       'WLM Group',
       'Total Shards',
     ];

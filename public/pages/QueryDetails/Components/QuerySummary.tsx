@@ -22,6 +22,10 @@ import {
   SEARCH_TYPE,
   TIMESTAMP,
   TOTAL_SHARDS,
+  APPLICATION_ID,
+  APPLICATION_ID_LABEL_KEY,
+  USERNAME,
+  USER_ROLES,
 } from '../../../../common/constants';
 import { calculateMetric } from '../../../../common/utils/MetricUtils';
 
@@ -58,7 +62,7 @@ const QuerySummary = ({ query }: { query: SearchQueryRecord | null }) => {
     return `${loc[1]} ${loc[2]}, ${loc[3]} @ ${date.toLocaleTimeString('en-US')}`;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  const { timestamp, measurements, indices, search_type, node_id, total_shards } = query;
+  const { timestamp, measurements, indices, search_type, node_id, total_shards, labels, username, user_roles } = query;
   return (
     <EuiPanel data-test-subj={'query-details-summary-section'}>
       <EuiTitle size="s">
@@ -83,6 +87,13 @@ const QuerySummary = ({ query }: { query: SearchQueryRecord | null }) => {
         <PanelItem label={SEARCH_TYPE} value={search_type.replaceAll('_', ' ')} />
         <PanelItem label={NODE_ID} value={node_id} />
         <PanelItem label={TOTAL_SHARDS} value={total_shards} />
+        {labels?.[APPLICATION_ID_LABEL_KEY] && (
+          <PanelItem label={APPLICATION_ID} value={labels[APPLICATION_ID_LABEL_KEY]} />
+        )}
+        {username && <PanelItem label={USERNAME} value={username} />}
+        {user_roles && user_roles.length > 0 && (
+          <PanelItem label={USER_ROLES} value={user_roles.join(', ')} />
+        )}
       </EuiFlexGrid>
     </EuiPanel>
   );

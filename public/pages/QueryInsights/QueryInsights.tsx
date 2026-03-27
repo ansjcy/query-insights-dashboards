@@ -48,6 +48,10 @@ import {
   TOTAL_SHARDS,
   TYPE,
   WLM_GROUP,
+  APPLICATION_ID,
+  APPLICATION_ID_LABEL_KEY,
+  USERNAME,
+  USER_ROLES,
   CHART_COLORS,
 } from '../../../common/constants';
 import { calculateMetric, calculateMetricNumber } from '../../../common/utils/MetricUtils';
@@ -74,6 +78,8 @@ const SEARCH_TYPE_FIELD = 'search_type';
 const NODE_ID_FIELD = 'node_id';
 const TOTAL_SHARDS_FIELD = 'total_shards';
 const WLM_GROUP_FIELD = 'wlm_group_id';
+const USERNAME_FIELD = 'username';
+const USER_ROLES_FIELD = 'user_roles';
 const METRIC_DEFAULT_MSG = 'Not enabled';
 const GROUP_BY_FIELD = 'group_by';
 
@@ -529,6 +535,32 @@ const QueryInsights = ({
       name: NODE_ID,
       render: (nid: string, q: SearchQueryRecord) => (
         <span>{q.group_by === 'SIMILARITY' ? '-' : nid}</span>
+      ),
+      sortable: true,
+      truncateText: true,
+    },
+    {
+      name: APPLICATION_ID,
+      render: (q: SearchQueryRecord) => (
+        <span>{q.group_by === 'SIMILARITY' ? '-' : q.labels?.[APPLICATION_ID_LABEL_KEY] || '-'}</span>
+      ),
+      sortable: (q: SearchQueryRecord) => q.labels?.[APPLICATION_ID_LABEL_KEY] || '',
+      truncateText: true,
+    },
+    {
+      field: USERNAME_FIELD as keyof SearchQueryRecord,
+      name: USERNAME,
+      render: (username: string, q: SearchQueryRecord) => (
+        <span>{q.group_by === 'SIMILARITY' ? '-' : username || '-'}</span>
+      ),
+      sortable: true,
+      truncateText: true,
+    },
+    {
+      field: USER_ROLES_FIELD as keyof SearchQueryRecord,
+      name: USER_ROLES,
+      render: (roles: string[], q: SearchQueryRecord) => (
+        <span>{q.group_by === 'SIMILARITY' ? '-' : roles?.join(', ') || '-'}</span>
       ),
       sortable: true,
       truncateText: true,

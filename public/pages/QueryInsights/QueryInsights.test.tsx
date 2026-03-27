@@ -251,6 +251,9 @@ describe('QueryInsights Component', () => {
           'Indices',
           'Search Type',
           'Coordinator Node ID',
+          'Application ID',
+          'Username',
+          'User Roles',
           'WLM Group',
           'Total Shards',
         ];
@@ -305,6 +308,9 @@ describe('QueryInsights Component', () => {
           'Indices',
           'Search Type',
           'Coordinator Node ID',
+          'Application ID',
+          'Username',
+          'User Roles',
           'WLM Group',
           'Total Shards',
         ];
@@ -337,6 +343,9 @@ describe('QueryInsights Component', () => {
           'Indices',
           'Search Type',
           'Coordinator Node ID',
+          'Application ID',
+          'Username',
+          'User Roles',
           'WLM Group',
           'Total Shards',
         ];
